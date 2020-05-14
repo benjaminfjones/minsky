@@ -1,5 +1,7 @@
 # Minsky
 
+![Rust](https://github.com/benjaminfjones/minsky/workflows/Rust/badge.svg)
+
 A toy implementation of Minsky Machines in Rust.
 
 See [1], [2], and especially [3].
