@@ -38,6 +38,15 @@ pub type Atom = (TapeId, i32);
 // A clause is a list of tape identifiers along with amounts to move each tape head (either forward
 // or backward depending on how the clause is interpreted).
 pub struct Clause(pub Vec<Atom>);
+impl Clause {
+    pub fn into_iter(self) -> Vec<Atom> {
+        self.0
+    }
+
+    pub fn iter(&self) -> &Vec<Atom> {
+        &self.0
+    }
+}
 
 pub struct Rule {
     // guard clause to check (and amounts to move tapes backward)
@@ -52,6 +61,12 @@ pub struct Rule {
 
 // A program is a list of rules
 pub struct Program(pub Vec<Rule>);
+
+impl Program {
+    pub fn iter(&self) -> &Vec<Rule> {
+        &self.0
+    }
+}
 
 impl Rule {
     // Create a new rule.
@@ -79,7 +94,7 @@ impl Rule {
     // Check that no two atoms in the clause refer to the same tape id.
     fn validate_disjoint_ids(clause: &Clause) -> Result<(), ()> {
         let mut seen = HashSet::new();
-        for (tid, _) in &clause.0 {
+        for (tid, _) in clause.iter() {
             if !seen.insert(tid) {
                 return Err(());
             }
@@ -93,12 +108,12 @@ impl Rule {
         Rule::validate_disjoint_ids(clause2)?;
         let mut seen1 = HashSet::new();
         let mut seen2 = HashSet::new();
-        clause1.0.iter().for_each(|(tid, _)| {
+        for (tid, _) in clause1.iter() {
             seen1.insert(tid);
-        });
-        clause2.0.iter().for_each(|(tid, _)| {
+        }
+        for (tid, _) in clause2.iter() {
             seen2.insert(tid);
-        });
+        }
         if seen1.is_disjoint(&seen2) {
             Ok(())
         } else {
@@ -120,7 +135,7 @@ impl TapeState {
     // Examine a tape state and determine whether a guard clause is satisfied, i.e. can the tapes be
     // moved backwards by the amounts specified in the guard?
     fn test_guard(&self, guard: &Clause) -> Result<bool, ErrorCode> {
-        for (tid, amt) in &guard.0 {
+        for (tid, amt) in guard.iter() {
             let tpos = self.0.get(&tid);
             if tpos.is_none() {
                 return Err(ErrorCode::BadClause);
@@ -152,15 +167,14 @@ impl TapeState {
     //
     // TODO: document parameters
     fn move_dir(&mut self, clause: &Clause, dir: i32) {
-        clause
-            .0
-            .iter()
-            .for_each(|(tid, amt)| match self.0.entry(*tid) {
+        for (tid, amt) in clause.iter() {
+            match self.0.entry(*tid) {
                 e @ Entry::Occupied(_) => {
                     e.and_modify(|v| *v += *amt * dir);
                 }
                 _ => panic!("bad tape id"),
-            })
+            }
+        }
     }
 }
 
@@ -207,7 +221,7 @@ pub fn interpret(initial_machine: Machine, program: &Program, fuel: i32) -> Resu
     let mut counter = 0;
     loop {
         let mut changed = false;
-        for rule in &program.0 {
+        for rule in program.iter() {
             if machine.apply_rule(&rule).is_ok() {
                 changed = true;
                 counter += 1;
