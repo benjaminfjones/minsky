@@ -3,6 +3,7 @@
 
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 #[derive(Debug)]
 pub enum ErrorCode {
@@ -53,7 +54,59 @@ pub struct Rule {
 pub struct Program(pub Vec<Rule>);
 
 impl Rule {
-    pub fn new(guard: Clause, action: Clause, cur_state: State, next_state: State) -> Self {
+    // Create a new rule.
+    //
+    // The guard and action clauses are checked to involve disjoint sets of tape ids.
+    pub fn new(
+        guard: Clause,
+        action: Clause,
+        cur_state: State,
+        next_state: State,
+    ) -> Result<Self, ()> {
+        let mut guard = guard;
+        let mut action = action;
+        Rule::normalize_clause(&mut guard);
+        Rule::normalize_clause(&mut action);
+        Rule::validate_disjoint_clauses(&guard, &action)?;
+        Ok(Rule::unchecked_new(guard, action, cur_state, next_state))
+    }
+
+    // Remove atoms that entail 0 tape movement.
+    fn normalize_clause(clause: &mut Clause) {
+        clause.0.retain(|(_, amt)| *amt > 0);
+    }
+
+    // Check that no two atoms in the clause refer to the same tape id.
+    fn validate_disjoint_ids(clause: &Clause) -> Result<(), ()> {
+        let mut seen = HashSet::new();
+        for (tid, _) in &clause.0 {
+            if !seen.insert(tid) {
+                return Err(());
+            }
+        }
+        Ok(())
+    }
+
+    // Check that the two given clauses have disjoint tape id sets.
+    fn validate_disjoint_clauses(clause1: &Clause, clause2: &Clause) -> Result<(), ()> {
+        Rule::validate_disjoint_ids(clause1)?;
+        Rule::validate_disjoint_ids(clause2)?;
+        let mut seen1 = HashSet::new();
+        let mut seen2 = HashSet::new();
+        clause1.0.iter().for_each(|(tid, _)| {
+            seen1.insert(tid);
+        });
+        clause2.0.iter().for_each(|(tid, _)| {
+            seen2.insert(tid);
+        });
+        if seen1.is_disjoint(&seen2) {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+
+    fn unchecked_new(guard: Clause, action: Clause, cur_state: State, next_state: State) -> Self {
         Rule {
             guard,
             action,
@@ -181,7 +234,7 @@ mod test {
     fn test_basic() {
         let g = Clause(vec![(1, 1), (2, 2)]);
         let a = Clause(vec![(3, 3), (4, 4)]);
-        let rule = Rule::new(g, a, 0, 0);
+        let rule = Rule::new(g, a, 0, 0).unwrap();
         assert_eq!(rule.cur_state, 0);
         assert_eq!(rule.next_state, 0);
         assert_eq!(&rule.guard.0[0], &(1, 1));
@@ -228,26 +281,17 @@ mod test {
         tape_state.0.insert(0, 0); // initial tape positions both at 0
         tape_state.0.insert(1, 0);
         // Rule 0: no guard, no machine state transition
-        let rule0 = Rule {
-            guard: Clause(vec![]),
-            action: Clause(vec![(0, 1), (1, 1)]),
-            cur_state: 0,
-            next_state: 0,
-        };
+        let rule0 = Rule::new(Clause(vec![]), Clause(vec![(0, 1), (1, 1)]), 0, 0).unwrap();
         // Rule 1: move tape 0 back 1, tape 1 forward 2, transition to new machine state
-        let rule1 = Rule {
-            guard: Clause(vec![(0, 1)]),
-            action: Clause(vec![(1, 2)]),
-            cur_state: 0,
-            next_state: 1,
-        };
+        let rule1 = Rule::new(Clause(vec![(0, 1)]), Clause(vec![(1, 2)]), 0, 1).unwrap();
         // Rule 2: move backwards only, preserve machine state
-        let rule2 = Rule {
-            guard: Clause(vec![(0, 2), (1, 2)]),
-            action: Clause(vec![(0, 0), (1, 0)]),
-            cur_state: 1,
-            next_state: 1,
-        };
+        let rule2 = Rule::new(
+            Clause(vec![(0, 2), (1, 2)]),
+            Clause(vec![(0, 0), (1, 0)]),
+            1,
+            1,
+        )
+        .unwrap();
 
         // Initial machine state
         let mut machine = Machine {
@@ -306,24 +350,27 @@ mod test {
 
     #[test]
     fn test_interpret() {
-        let rule0 = Rule {
-            guard: Clause(vec![(0, 0), (1, 0), (2, 1)]),
-            action: Clause(vec![(0, 1), (1, 1), (2, 0)]),
-            cur_state: 0,
-            next_state: 0,
-        };
-        let rule1 = Rule {
-            guard: Clause(vec![(0, 0), (1, 5), (2, 0)]),
-            action: Clause(vec![(0, 0), (1, 0), (2, 0)]),
-            cur_state: 0,
-            next_state: 1,
-        };
-        let rule2 = Rule {
-            guard: Clause(vec![(0, 1), (1, 0), (2, 0)]),
-            action: Clause(vec![(0, 0), (1, 1), (2, 2)]),
-            cur_state: 1,
-            next_state: 1,
-        };
+        let rule0 = Rule::new(
+            Clause(vec![(0, 0), (1, 0), (2, 1)]),
+            Clause(vec![(0, 1), (1, 1), (2, 0)]),
+            0,
+            0,
+        )
+        .unwrap();
+        let rule1 = Rule::new(
+            Clause(vec![(0, 0), (1, 5), (2, 0)]),
+            Clause(vec![(0, 0), (1, 0), (2, 0)]),
+            0,
+            1,
+        )
+        .unwrap();
+        let rule2 = Rule::new(
+            Clause(vec![(0, 1), (1, 0), (2, 0)]),
+            Clause(vec![(0, 0), (1, 1), (2, 2)]),
+            1,
+            1,
+        )
+        .unwrap();
         let program = Program(vec![rule0, rule1, rule2]);
 
         let machine = Machine {

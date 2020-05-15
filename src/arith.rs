@@ -9,7 +9,8 @@ pub fn adder(x: i32, y: i32) -> i32 {
         Clause(vec![(0, 1), (1, 0)]),
         0,
         0,
-    );
+    )
+    .unwrap();
     let program = Program(vec![rule]);
 
     let machine = Machine::new(0, vec![(0, x), (1, y)].into_iter().collect());
