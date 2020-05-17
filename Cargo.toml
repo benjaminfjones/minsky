@@ -1,9 +1,16 @@
 [package]
 name = "minsky"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Benjamin Jones <bfj@amazon.com>"]
 edition = "2018"
+build = "build.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# lalrpop library is needed to generate parser code at build time.
+[build-dependencies]
+lalrpop = {version = "0.19.0", features = ["lexer"]}
 
+# The generated parser code depends on lalrpop-util.
+# The generated tokenizer depends on the regex.
 [dependencies]
+lalrpop-util = "0.19.0"
+regex = "1"

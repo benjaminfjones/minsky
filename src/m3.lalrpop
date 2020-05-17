@@ -1,0 +1,55 @@
+// A simple grammar for Magnificent Minsky Machines.
+//
+// The number of tapes `n` is given, they are assumed to be numbered from
+// 0..n-1.
+//
+// On each subsequent line, a rule is given. Each rule starts with a matching
+// state (non-negative integer), a vector of increments/decrements to the tape
+// heads which must have length `n`, and finally a next state.
+//
+// For example:
+//
+// ----
+// tapes: 3
+// 0 [1, -1, 1] 0
+// 0 [0, 1, 0] 1
+// ----
+//
+// describes a program which will decrement tape 1 repeatedly until it reaches
+// the bottom, while incrementing tapes 0 and 2. Then it will increment tape 1
+// and transition to state 1, and finally halt since no more rules apply.
+//
+use std::str::FromStr;
+use crate::m3_ast::{RawProgram,RawRule};
+
+grammar;
+
+pub RawProgram: RawProgram = {
+    <nt:NTapes> <rs:RawRule+> => RawProgram {
+        num_tapes: nt as usize,
+        rules: rs,
+    }
+};
+
+NTapes: i32 = {
+    "tapes:" <n:Num> => n,
+};
+
+RawRule: RawRule = {
+    <n1:Num> "[" <v:Comma<Num>> "]" <n2:Num> => RawRule {
+        cur_state: n1,
+        next_state: n2,
+        rule: v,
+    }
+};
+
+Num: i32 = {
+    <s:r"[+-]?[0-9]+"> => i32::from_str(s)
+        .expect("could not parse expected integer")
+};
+
+// Macros
+
+Comma<T>: Vec<T> = {
+    <v:(<T> ",")*> <e:T?> => v.into_iter().chain(e.into_iter()).collect()
+};
