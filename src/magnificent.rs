@@ -144,6 +144,7 @@ pub fn interpret(initial_machine: Machine, program: &Program, fuel: i32) -> Resu
     let mut counter = 0;
     loop {
         let mut changed = false;
+        // println!("{}: {:?}", machine.machine_state, machine.tape_state);
         for rule in program.iter() {
             if machine.apply_rule(&rule).is_ok() {
                 changed = true;
