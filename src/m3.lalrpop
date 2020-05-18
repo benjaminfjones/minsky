@@ -20,27 +20,27 @@
 // and transition to state 1, and finally halt since no more rules apply.
 //
 use std::str::FromStr;
-use crate::m3_ast::{RawProgram,RawRule};
+use crate::magnificent::{Program,Rule};
 
 grammar;
 
-pub RawProgram: RawProgram = {
-    <nt:NTapes> <rs:RawRule+> => RawProgram {
-        num_tapes: nt as usize,
-        rules: rs,
-    }
+pub Program: Program = {
+    <nt:NTapes> <rs:Rule+> => Program::new(
+        nt as usize,
+        rs,
+    )
 };
 
 NTapes: i32 = {
     "tapes:" <n:Num> => n,
 };
 
-RawRule: RawRule = {
-    <n1:Num> "[" <v:Comma<Num>> "]" <n2:Num> => RawRule {
-        cur_state: n1,
-        next_state: n2,
-        rule: v,
-    }
+Rule: Rule = {
+    <n1:Num> "[" <v:Comma<Num>> "]" <n2:Num> => Rule::new(
+        n1 as usize,
+        n2 as usize,
+        v,
+    )
 };
 
 Num: i32 = {

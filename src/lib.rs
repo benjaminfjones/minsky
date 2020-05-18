@@ -1,5 +1,4 @@
 pub mod arith;
-pub mod m3_ast;
 pub mod m3_parser;
 pub mod magnificent;
 

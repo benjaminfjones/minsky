@@ -1,6 +1,8 @@
 // Interpreter for "Magnificent Minsky Machines"
 //
 
+use std::slice::Iter;
+
 #[derive(Debug)]
 pub enum ErrorCode {
     // a tape id listed in the clause is invalid
@@ -27,7 +29,7 @@ pub struct Machine {
     tape_state: TapeState,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Rule {
     // current state that the rule applies to
     cur_state: State,
@@ -57,8 +59,12 @@ impl Rule {
         }
     }
 
-    pub fn iter(&self) -> &Vec<i32> {
-        &self.rule
+    pub fn len(&self) -> usize {
+        self.rule.len()
+    }
+
+    pub fn iter(&self) -> Iter<i32> {
+        self.rule.iter()
     }
 }
 
@@ -98,8 +104,12 @@ impl Program {
         Program { num_tapes, rules }
     }
 
-    pub fn iter(&self) -> &Vec<Rule> {
-        &self.rules
+    pub fn num_tapes(&self) -> usize {
+        self.num_tapes
+    }
+
+    pub fn iter(&self) -> Iter<Rule> {
+        self.rules.iter()
     }
 }
 

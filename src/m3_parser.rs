@@ -1,4 +1,3 @@
-use crate::m3_ast;
 use crate::magnificent;
 
 lalrpop_mod!(pub m3); // generated parser
@@ -9,9 +8,9 @@ pub fn parse_m3(_input: &str) -> Result<magnificent::Program, String> {
     Err("unimplemented".to_string())
 }
 
-pub fn validate_raw_program(raw_prog: &m3_ast::RawProgram) -> Result<(), String> {
-    for r in raw_prog.rules.iter() {
-        if r.rule.len() != raw_prog.num_tapes {
+pub fn validate_raw_program(prog: &magnificent::Program) -> Result<(), String> {
+    for r in prog.iter() {
+        if r.len() != prog.num_tapes() {
             return Err(format!("Rule {:?} specifies incorrect number of tapes", r));
         }
     }
@@ -23,34 +22,93 @@ mod test {
 
     use super::m3;
     use super::validate_raw_program;
+    use crate::magnificent;
 
     #[test]
     pub fn test_parse_m3() {
         let input = r"
             tapes: 2
             0 [1, -1] 0";
-        let raw_program = m3::RawProgramParser::new()
+        let program = m3::ProgramParser::new()
             .parse(input)
             .expect("m3 parser failed");
-        validate_raw_program(&raw_program).expect("Invalid program");
-        assert_eq!(raw_program.num_tapes, 2);
-        assert_eq!(raw_program.rules[0].cur_state, 0);
-        assert_eq!(raw_program.rules[0].next_state, 0);
-        assert_eq!(raw_program.rules[0].rule, vec![1, -1]);
+        validate_raw_program(&program).expect("Invalid program");
+        assert_eq!(program.num_tapes(), 2);
+        let mut rules_iter = program.iter();
+        assert_eq!(
+            rules_iter.next().unwrap(),
+            &magnificent::Rule::new(0, 0, vec![1, -1])
+        );
 
         let input = r"
             tapes: 3
             0 [1, -1, 2] 1
             1 [0, 1, 0] 2";
-        let raw_program = m3::RawProgramParser::new()
+        let program = m3::ProgramParser::new()
             .parse(input)
             .expect("m3 parser failed");
-        assert_eq!(raw_program.num_tapes, 3);
-        assert_eq!(raw_program.rules[0].cur_state, 0);
-        assert_eq!(raw_program.rules[0].next_state, 1);
-        assert_eq!(raw_program.rules[0].rule, vec![1, -1, 2]);
-        assert_eq!(raw_program.rules[1].cur_state, 1);
-        assert_eq!(raw_program.rules[1].next_state, 2);
-        assert_eq!(raw_program.rules[1].rule, vec![0, 1, 0]);
+        validate_raw_program(&program).expect("Invalid program");
+        assert_eq!(program.num_tapes(), 3);
+
+        let mut rules_iter = program.iter();
+        assert_eq!(
+            rules_iter.next().unwrap(),
+            &magnificent::Rule::new(0, 1, vec![1, -1, 2])
+        );
+        assert_eq!(
+            rules_iter.next().unwrap(),
+            &magnificent::Rule::new(1, 2, vec![0, 1, 0])
+        );
+
+        let input = r"
+            tapes: 5
+            0 [1, 2, 3, 4, 5] 1
+            1 [-1, 2, 3, 4, 5] 2
+            2 [-1, -2, 3, 4, 5] 0
+            0 [0, 0, 0, 4, 5] 4
+            4 [1, 2, 3, -4, -5] 5
+            5 [1, 2, 3, 0, 0] 0
+            ";
+        let program = m3::ProgramParser::new()
+            .parse(input)
+            .expect("m3 parser failed");
+        validate_raw_program(&program).expect("Invalid program");
+    }
+
+    // Test parsing a program with malformed tapes statement
+    #[test]
+    #[should_panic(expected = "m3 parser failed")]
+    pub fn test_bad_parse1() {
+        let input = r"
+            tape 3
+            0 [1, -1, 2] 1";
+        let program = m3::ProgramParser::new()
+            .parse(input)
+            .expect("m3 parser failed");
+        validate_raw_program(&program).expect("Invalid program");
+    }
+
+    // Test parsing a program with missing next state
+    #[test]
+    #[should_panic(expected = "m3 parser failed")]
+    pub fn test_bad_parse2() {
+        let input = r"
+            tapes: 3
+            0 [1, -1, 2]";
+        let program = m3::ProgramParser::new()
+            .parse(input)
+            .expect("m3 parser failed");
+        validate_raw_program(&program).expect("Invalid program");
+    }
+
+    // Test parsing a program with invalid rule width
+    #[test]
+    #[should_panic(expected = "Invalid program")]
+    pub fn test_bad_parse3() {
+        let input = r"
+            tapes: 1
+            0 [1, -1, 2, 0] 0";
+        let program = m3::ProgramParser::new().parse(input).unwrap(); //.expect("m3 parser failed");
+        validate_raw_program(&program).expect("Invalid program");
     }
 }
