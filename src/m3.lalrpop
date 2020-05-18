@@ -24,6 +24,17 @@ use crate::magnificent::{Program,Rule};
 
 grammar;
 
+// Specify terminal precedence and patterns to skip while lexing
+match {
+    "tapes:",
+    "[",
+    "]",
+    ",",
+    r"[+-]?[0-9]+",
+    r"\s*" => { }, // Skip whitespace
+    r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
+}
+
 pub Program: Program = {
     <nt:NTapes> <rs:Rule+> => Program::new(
         nt as usize,

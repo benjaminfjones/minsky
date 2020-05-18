@@ -23,6 +23,7 @@ mod test {
     use super::m3;
     use super::validate_raw_program;
     use crate::magnificent;
+    use std::fs;
 
     #[test]
     pub fn test_parse_m3() {
@@ -110,5 +111,23 @@ mod test {
             0 [1, -1, 2, 0] 0";
         let program = m3::ProgramParser::new().parse(input).unwrap(); //.expect("m3 parser failed");
         validate_raw_program(&program).expect("Invalid program");
+    }
+
+    // Test parsing of a file on disk
+    #[test]
+    pub fn test_parse_file() {
+        const ADDER_PROGRAM: &str = "examples/adder.m3";
+        let input = fs::read_to_string(ADDER_PROGRAM).expect("failed to read program file");
+        let program = m3::ProgramParser::new()
+            .parse(&input)
+            .expect("failed to parse program file");
+        validate_raw_program(&program).expect("invalid program");
+
+        // Interpret the parsed program to make sure it works
+        let machine = magnificent::Machine::new(0, vec![1, 1]);
+        let end_machine = magnificent::interpret(machine, &program, 2);
+        assert!(end_machine.is_ok());
+        let end_machine = end_machine.unwrap();
+        assert_eq!(end_machine.tape_pos(0), 2);
     }
 }
