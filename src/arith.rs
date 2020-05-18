@@ -1,19 +1,12 @@
-use crate::magnificent::{interpret, Clause, Machine, Program, Rule};
+use crate::magnificent::{interpret, Machine, Program, Rule};
 
 // Construct a Magnificent Minsky Machine that adds two non-negative integers and run it on the
 // inputs.
 pub fn adder(x: i32, y: i32) -> i32 {
     assert!(x >= 0 && y >= 0);
-    let rule = Rule::new(
-        Clause(vec![(0, 0), (1, 1)]),
-        Clause(vec![(0, 1), (1, 0)]),
-        0,
-        0,
-    )
-    .unwrap();
-    let program = Program(vec![rule]);
-
-    let machine = Machine::new(0, vec![(0, x), (1, y)].into_iter().collect());
+    let rule = Rule::new(0, 0, vec![1, -1]);
+    let program = Program::new(2, vec![rule]);
+    let machine = Machine::new(0, vec![x, y]);
 
     // machine transitions:
     //   - rule will fire y times, moving tape 0 to x+y and tape 1 to 0
