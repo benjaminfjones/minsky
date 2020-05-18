@@ -115,7 +115,7 @@ mod test {
 
     // Test parsing of a file on disk
     #[test]
-    pub fn test_parse_file() {
+    pub fn test_parse_adder() {
         const ADDER_PROGRAM: &str = "examples/adder.m3";
         let input = fs::read_to_string(ADDER_PROGRAM).expect("failed to read program file");
         let program = m3::ProgramParser::new()
@@ -125,9 +125,27 @@ mod test {
 
         // Interpret the parsed program to make sure it works
         let machine = magnificent::Machine::new(0, vec![1, 1]);
-        let end_machine = magnificent::interpret(machine, &program, 2);
+        let end_machine = magnificent::interpret(machine, &program, 100);
         assert!(end_machine.is_ok());
         let end_machine = end_machine.unwrap();
         assert_eq!(end_machine.tape_pos(0), 2);
+    }
+
+    // Test parsing of a file on disk
+    #[test]
+    pub fn test_parse_mult() {
+        const MULT_PROGRAM: &str = "examples/mult.m3";
+        let input = fs::read_to_string(MULT_PROGRAM).expect("failed to read program file");
+        let program = m3::ProgramParser::new()
+            .parse(&input)
+            .expect("failed to parse program file");
+        validate_raw_program(&program).expect("invalid program");
+
+        // Interpret the parsed program to make sure it works
+        let machine = magnificent::Machine::new(0, vec![0, 2, 0, 3 - 1]);
+        let end_machine = magnificent::interpret(machine, &program, 100);
+        assert!(end_machine.is_ok());
+        let end_machine = end_machine.unwrap();
+        assert_eq!(end_machine.tape_pos(0), 6);
     }
 }
