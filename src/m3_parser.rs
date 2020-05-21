@@ -1,4 +1,5 @@
 use crate::magnificent;
+use std::fs;
 
 lalrpop_mod!(pub m3); // generated parser
 
@@ -15,6 +16,16 @@ pub fn validate_raw_program(prog: &magnificent::Program) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+// Helper function to read / parse programs
+pub fn read_program(filepath: &str) -> magnificent::Program {
+    let input = fs::read_to_string(filepath).expect("failed to read program file");
+    let program = m3::ProgramParser::new()
+        .parse(&input)
+        .expect("failed to parse program file");
+    validate_raw_program(&program).expect("invalid program");
+    program
 }
 
 #[cfg(test)]
@@ -127,7 +138,7 @@ mod test {
         let machine = magnificent::Machine::new(0, vec![1, 1]);
         let end_machine = magnificent::interpret(machine, &program, 100);
         assert!(end_machine.is_ok());
-        let end_machine = end_machine.unwrap();
+        let (_, end_machine) = end_machine.unwrap();
         assert_eq!(end_machine.tape_pos(0), 2);
     }
 
@@ -145,7 +156,27 @@ mod test {
         let machine = magnificent::Machine::new(0, vec![0, 2, 0, 3 - 1]);
         let end_machine = magnificent::interpret(machine, &program, 100);
         assert!(end_machine.is_ok());
-        let end_machine = end_machine.unwrap();
+        let (_, end_machine) = end_machine.unwrap();
         assert_eq!(end_machine.tape_pos(0), 6);
+    }
+
+    // Test parsing of the 6-rule multiplier
+    #[test]
+    pub fn test_parse_6_rule_mult() {
+        const MULT_PROGRAM: &str = "examples/6-rule-mult.m3";
+        let input = fs::read_to_string(MULT_PROGRAM).expect("failed to read program file");
+        let program = m3::ProgramParser::new()
+            .parse(&input)
+            .expect("failed to parse program file");
+        validate_raw_program(&program).expect("invalid program");
+
+        // Interpret the parsed program to make sure it works
+        let x = 7;
+        let y = 11;
+        let machine = magnificent::Machine::new(0, vec![0, x, y, 0]);
+        let end_machine = magnificent::interpret(machine, &program, 1000);
+        assert!(end_machine.is_ok());
+        let (_, end_machine) = end_machine.unwrap();
+        assert_eq!(end_machine.tape_pos(0), x * y);
     }
 }

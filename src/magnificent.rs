@@ -11,6 +11,8 @@ pub enum ErrorCode {
     GuardNotSAT,
     // the current machine state does not match the rule cur_state
     WrongState,
+    // interpreter out of fuel
+    OutOfFuel,
 }
 
 // Machine states are non-negative integers
@@ -149,12 +151,16 @@ impl Machine {
 // Try to apply rules in the program in the order they appear.
 //   - When a rule applies, apply it and start over from the first rule in the program.
 //   - When no rules apply to a given machine, halt and return the machine.
-pub fn interpret(initial_machine: Machine, program: &Program, fuel: i32) -> Result<Machine, ()> {
+pub fn interpret(
+    initial_machine: Machine,
+    program: &Program,
+    fuel: u64,
+) -> Result<(u64, Machine), ErrorCode> {
     let mut machine = initial_machine;
-    let mut counter = 0;
+    let mut counter: u64 = 0;
     loop {
         let mut changed = false;
-        // println!("{}: {:?}", machine.machine_state, machine.tape_state);
+        println!("{}: {:?}", machine.machine_state, machine.tape_state);
         for rule in program.iter() {
             if machine.apply_rule(&rule).is_ok() {
                 changed = true;
@@ -163,10 +169,10 @@ pub fn interpret(initial_machine: Machine, program: &Program, fuel: i32) -> Resu
             }
         }
         if !changed {
-            return Ok(machine);
+            return Ok((counter, machine));
         }
         if counter >= fuel {
-            return Err(());
+            return Err(ErrorCode::OutOfFuel);
         }
     }
 }
@@ -300,7 +306,7 @@ mod test {
         //   - rule 2 will then fire 5 times, moving tape 0 to 0, tape 1 to 5, and tape 2 to 10
         let end_machine = interpret(machine, &program, 1000);
         assert!(end_machine.is_ok());
-        let end_machine = end_machine.unwrap();
+        let (_, end_machine) = end_machine.unwrap();
         println!("end machine: {:?}", end_machine);
         assert_eq!(end_machine.machine_state, 1);
         assert_eq!(end_machine.tape_state.0, vec![0, 5, 10]);

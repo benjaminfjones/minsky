@@ -13,9 +13,9 @@ pub fn adder(x: i32, y: i32) -> i32 {
 
     // machine transitions:
     //   - rule will fire y times, moving tape 0 to x+y and tape 1 to 0
-    let end_machine = interpret(machine, &program, 2 * y);
+    let end_machine = interpret(machine, &program, 2 * y as u64);
     assert!(end_machine.is_ok());
-    let end_machine = end_machine.unwrap();
+    let (_, end_machine) = end_machine.unwrap();
     end_machine.tape_pos(0)
 }
 
@@ -43,9 +43,9 @@ pub fn mult(x: i32, y: i32) -> i32 {
     let program = Program::new(4, vec![rule0, rule1, rule2, rule3]);
     let machine = Machine::new(0, vec![0, x, 0, y - 1]);
 
-    let end_machine = interpret(machine, &program, 2 * (x + 1) * y);
+    let end_machine = interpret(machine, &program, (2 * (x + 1) * y) as u64);
     assert!(end_machine.is_ok());
-    let end_machine = end_machine.unwrap();
+    let (_, end_machine) = end_machine.unwrap();
     end_machine.tape_pos(0)
 }
 
