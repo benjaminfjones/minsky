@@ -28,11 +28,7 @@ use std::slice::Iter;
 pub enum ErrorCode {
     /// a tape id listed in the clause is invalid
     BadClause,
-    // a rule guard was not satisfied
-    GuardNotSAT,
-    // the current machine state does not match the rule cur_state
-    WrongState,
-    // interpreter out of fuel
+    /// interpreter out of fuel
     OutOfFuel,
 }
 
@@ -166,15 +162,15 @@ impl Machine {
     /// otherwise `false`.
     pub fn apply_rule(&mut self, rule: &Rule) -> bool {
         if self.machine_state != rule.cur_state {
-            return Err(ErrorCode::WrongState);
+            return false;
         }
         if self.tape_state.test_rule(&rule) {
             self.tape_state.apply_rule(&rule);
             assert!(self.tape_state.is_valid());
             self.machine_state = rule.next_state;
-            Ok(())
+            return true;
         } else {
-            return Err(ErrorCode::GuardNotSAT);
+            return false;
         }
     }
 
@@ -200,7 +196,7 @@ pub fn interpret(
         let mut changed = false;
         println!("{}: {:?}", machine.machine_state, machine.tape_state);
         for rule in program.iter() {
-            if machine.apply_rule(&rule).is_ok() {
+            if machine.apply_rule(&rule) {
                 changed = true;
                 counter += 1;
                 break;
@@ -289,41 +285,41 @@ mod test {
         assert_eq!(machine.tape_state.0, vec![0, 0]);
 
         // Rule 1 doesn't apply b/c of the guard
-        assert!(machine.apply_rule(&rule1).is_err());
+        assert!(!machine.apply_rule(&rule1));
         // Rule 2 doesn't apply b/c the machine state is wrong
-        assert!(machine.apply_rule(&rule2).is_err());
+        assert!(!machine.apply_rule(&rule2));
         // tape_state: [0, 0], machine_state: 0
         assert_eq!(machine.machine_state, 0);
         assert_eq!(machine.tape_state.0, vec![0, 0]);
 
         // Rule 0 always applies
-        assert!(machine.apply_rule(&rule0).is_ok());
+        assert!(machine.apply_rule(&rule0));
         // tape_state: [1, 1], machine_state: 0
         assert_eq!(machine.machine_state, 0);
         assert_eq!(machine.tape_state.0, vec![1, 1]);
 
-        assert!(machine.apply_rule(&rule0).is_ok());
+        assert!(machine.apply_rule(&rule0));
         assert_eq!(machine.machine_state, 0);
         assert_eq!(machine.tape_state.0, vec![2, 2]);
 
-        assert!(machine.apply_rule(&rule0).is_ok());
-        assert!(machine.apply_rule(&rule0).is_ok());
+        assert!(machine.apply_rule(&rule0));
+        assert!(machine.apply_rule(&rule0));
 
         // Try rule1:
-        assert!(machine.apply_rule(&rule1).is_ok());
+        assert!(machine.apply_rule(&rule1));
         assert_eq!(machine.machine_state, 1);
         assert_eq!(machine.tape_state.0, vec![3, 6]);
 
         // Rule 1 doesn't apply anymore b/c we're in state 1
-        assert!(machine.apply_rule(&rule1).is_err());
+        assert!(!machine.apply_rule(&rule1));
 
         // Rule 2 applies:
-        assert!(machine.apply_rule(&rule2).is_ok());
+        assert!(machine.apply_rule(&rule2));
         assert_eq!(machine.machine_state, 1);
         assert_eq!(machine.tape_state.0, vec![1, 4]);
 
         // Rule 2 doesn't apply anymore b/c tape 0 can't move back 2
-        assert!(machine.apply_rule(&rule2).is_err());
+        assert!(!machine.apply_rule(&rule2));
     }
 
     #[test]
