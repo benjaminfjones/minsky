@@ -1,11 +1,32 @@
-// Interpreter for "Magnificent Minsky Machines"
-//
+//! # Magnificent Minsky Machine Interpreter
+//!
+//! This module implements an interpreter for "Magnificent Minsky Machines".
+//!
+//! A Magnificent Minsky Machine is a Minsky Machine with a fixed number of tapes. Each tape has a
+//! head whose position is a non-negative integer. The machine has a fixed set of states, denoted
+//! by non-negative integers.
+//!
+//! A program for this machine is an ordered sequence of rules. The rules consist of a state in
+//! which they may fire, a next state to transition to after the rule fires, and a vector of tape
+//! head adjustments. A rule only fires if the machine is in the correct state and the tape head
+//! adjustments can be made to the tape positions without causing any tape head position to fall
+//! below zero. The negative entries in a rule adjustment are called the "guard" and the positive
+//! entries are called the "action".
+//!
+//! The interpreter takes an initial machine (consisting of an initial machine state and tape head
+//! positions) and a program, and produces a final machine (or an error). Starting from the initial
+//! state, the interpreter iterates over the list rules in the program in order. The first rule to
+//! apply is applied, the tape heads are adjusted, and the machine state is potentially changed.
+//! The interpreter then repeats the process starting at the beginning of the rule list. This
+//! process continues until either no rule in the program applies or the interpreter runs out of
+//! fuel.
 
 use std::slice::Iter;
 
+/// Error conditions the interpreter may return
 #[derive(Debug)]
 pub enum ErrorCode {
-    // a tape id listed in the clause is invalid
+    /// a tape id listed in the clause is invalid
     BadClause,
     // a rule guard was not satisfied
     GuardNotSAT,
@@ -15,37 +36,42 @@ pub enum ErrorCode {
     OutOfFuel,
 }
 
-// Machine states are non-negative integers
+/// Machine states are non-negative integers
 pub type State = usize;
 
-// Tapes are identified using non-negative integers
+/// Tapes are identified using non-negative integers
 pub type TapeId = usize;
 
-// Tape state is a tape head position (non-negative integer) for each tape
+/// Tape state is a tape head position (non-negative integer) for each tape
 #[derive(Debug)]
 pub struct TapeState(pub Vec<i32>);
 
+/// A Magnificent Minsky Machine
 #[derive(Debug)]
 pub struct Machine {
     machine_state: State,
     tape_state: TapeState,
 }
 
+/// A Rule, part of a Minsky Machine program
 #[derive(Debug, Eq, PartialEq)]
 pub struct Rule {
     // current state that the rule applies to
     cur_state: State,
     // next state after the rule is applied
     next_state: State,
-    // rule clause specifies decrements and increments to make to the tape state, provided that
+    // Rule clause specifies decrements and increments to make to the tape state, provided that
     // the decrements can actually be made without passing bottom on any tape.
     rule: Vec<i32>,
 }
 
-// A program consists of a number of tapes and a list of rules
+/// A program consists of a number of tapes and a list of rules
 #[derive(Debug)]
 pub struct Program {
+    // Number of tapes used in the program. This value must match the size of the machine's
+    // TapeState.
     num_tapes: usize,
+    // Ordered sequence of rules that make up the program
     rules: Vec<Rule>,
 }
 
@@ -53,6 +79,8 @@ pub struct Program {
 // Implementations
 
 impl Rule {
+    /// Create a new Rule by specifying the current state it should fire in, the next state the
+    /// machine should transition to, and the tape head adjustments.
     pub fn new(cur_state: State, next_state: State, rule: Vec<i32>) -> Self {
         Rule {
             cur_state,
@@ -61,20 +89,23 @@ impl Rule {
         }
     }
 
+    /// Return the number of tapes that the rule operators over (i.e. the number of tape head
+    /// adjustments).
     pub fn len(&self) -> usize {
         self.rule.len()
     }
 
+    /// Iterate over the tape head adjustments that the rule specifies
     pub fn iter(&self) -> Iter<i32> {
         self.rule.iter()
     }
 }
 
 impl TapeState {
-    // Examine a tape state and determine whether a rule is satisfied, i.e. can the tapes be
-    // moved backwards by the amounts specified in the rule?
-    //
-    // This method assumes that the number of tapes and the size of the rule are equal.
+    /// Examine a tape state and determine whether a rule is satisfied, i.e. can the tapes be
+    /// moved backwards by the amounts specified in the rule?
+    ///
+    /// This method assumes that the number of tapes and the size of the rule are equal.
     fn test_rule(&self, rule: &Rule) -> bool {
         assert!(self.0.len() == rule.rule.len());
         self.0
@@ -83,39 +114,44 @@ impl TapeState {
             .all(|(tp, amt)| *amt >= 0 || *tp >= -(*amt))
     }
 
-    // Apply the decrements/increments given in `rule` to `self`.
-    //
-    // `test_rule` must always be called before `apply_rule`.
-    //
-    // This method assumes that self.0 and rule.rule are the same length, it does not examine the
-    // current state of `rule`, and it does not check that the decrements can be made safely.
+    /// Apply the decrements/increments given in `rule` to `self`.
+    ///
+    /// `test_rule` must always be called before `apply_rule`.
+    ///
+    /// This method assumes that self.0 and rule.rule are the same length, it does not examine the
+    /// current state of `rule`, and it does not check that the decrements can be made safely.
     fn apply_rule(&mut self, rule: &Rule) {
         for (t, amt) in self.0.iter_mut().zip(rule.iter()) {
             *t += *amt;
         }
     }
 
-    // Check that the tape positions are all non-negative
+    /// Check that the tape positions are all non-negative
     fn is_valid(&self) -> bool {
         self.0.iter().all(|tp| *tp >= 0)
     }
 }
 
 impl Program {
+    /// Create a new program by specifying the number of tapes it operates on andf the ordered
+    /// sequence of rules to apply.
     pub fn new(num_tapes: usize, rules: Vec<Rule>) -> Self {
         Program { num_tapes, rules }
     }
 
+    /// Return the number of tapes the program operates on.
     pub fn num_tapes(&self) -> usize {
         self.num_tapes
     }
 
+    /// Iterate over the rules in the program in order.
     pub fn iter(&self) -> Iter<Rule> {
         self.rules.iter()
     }
 }
 
 impl Machine {
+    /// Create a new machine given an initial machine state and tape head positions.
     pub fn new(machine_state: usize, tape_state: Vec<i32>) -> Self {
         Machine {
             machine_state,
@@ -123,11 +159,12 @@ impl Machine {
         }
     }
 
-    // Try to apply the give rule to the machine.
-    //
-    // If the rule's guard is satisfied, move the tapes in the guard backwards and the tapes in
-    // the action forward. Then update the machine's state. If successful, return Ok, else Err.
-    pub fn apply_rule(&mut self, rule: &Rule) -> Result<(), ErrorCode> {
+    /// Try to apply the give rule to the machine.
+    ///
+    /// If the rule's guard is satisfied, move the tapes in the guard backwards and the tapes in
+    /// the action forward. Then update the machine's state. If successful, return `true`,
+    /// otherwise `false`.
+    pub fn apply_rule(&mut self, rule: &Rule) -> bool {
         if self.machine_state != rule.cur_state {
             return Err(ErrorCode::WrongState);
         }
@@ -141,16 +178,17 @@ impl Machine {
         }
     }
 
+    /// Return the current tape head position for the indicated tape.
     pub fn tape_pos(&self, id: usize) -> i32 {
         self.tape_state.0[id]
     }
 }
 
-// Interpret the given program starting with the initial machine.
-//
-// Try to apply rules in the program in the order they appear.
-//   - When a rule applies, apply it and start over from the first rule in the program.
-//   - When no rules apply to a given machine, halt and return the machine.
+/// Interpret the given program starting with the initial machine.
+///
+/// Try to apply rules in the program in the order they appear.
+///   - When a rule applies, apply it and start over from the first rule in the program.
+///   - When no rules apply to a given machine, halt and return the machine.
 pub fn interpret(
     initial_machine: Machine,
     program: &Program,
