@@ -85,6 +85,16 @@ impl Rule {
         }
     }
 
+    /// Return the state that this rule fires in.
+    pub fn cur_state(&self) -> State {
+        self.cur_state
+    }
+
+    /// Return the state that this rule transitions the machine to.
+    pub fn next_state(&self) -> State {
+        self.next_state
+    }
+
     /// Return the number of tapes that the rule operators over (i.e. the number of tape head
     /// adjustments).
     pub fn len(&self) -> usize {
@@ -138,6 +148,11 @@ impl Program {
     /// Return the number of tapes the program operates on.
     pub fn num_tapes(&self) -> usize {
         self.num_tapes
+    }
+
+    /// Return the number of rules.
+    pub fn num_rules(&self) -> usize {
+        self.rules.len()
     }
 
     /// Iterate over the rules in the program in order.
