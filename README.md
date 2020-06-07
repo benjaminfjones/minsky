@@ -13,18 +13,12 @@ The goals are:
 * [X] write a basic interpreter for Magnificent Minsky Machines (M3)
 * [X] write some arithmetic programs using the M3 interpreter
 * [X] define a grammar for M3 and implement a parser
-* [ ] write a transpiler from M3 to M3 that produces machines with a single
+* [X] write a transpiler from M3 to M3 that produces machines with a single
       machine state (and possibly many more tapes)
 * [ ] write a transpiler from M3 to M3 that produces machines with a single
-      machine state and a single state.
+      machine state and a single tape.
 * [ ] support "Portable Minsky Machine Notation" [4]
 
-## Progress
-
-* Basic M3 interpreter works and has tests and applications (e.g.
-  `adder.rs`).
-* Added a parser for a basic M3 grammar
-* Implemented a basic multiplier using 4 rules and 4 tapes
 
 ## References
 
