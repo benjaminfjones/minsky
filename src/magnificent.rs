@@ -101,6 +101,11 @@ impl Rule {
         self.rule.len()
     }
 
+    /// Determine of the rule set is empty
+    pub fn is_empty(&self) -> bool {
+        self.rule.is_empty()
+    }
+
     /// Iterate over the tape head adjustments that the rule specifies
     pub fn iter(&self) -> Iter<i32> {
         self.rule.iter()
@@ -176,17 +181,13 @@ impl Machine {
     /// the action forward. Then update the machine's state. If successful, return `true`,
     /// otherwise `false`.
     pub fn apply_rule(&mut self, rule: &Rule) -> bool {
-        if self.machine_state != rule.cur_state {
-            return false;
-        }
-        if self.tape_state.test_rule(&rule) {
+        if self.machine_state == rule.cur_state && self.tape_state.test_rule(&rule) {
             self.tape_state.apply_rule(&rule);
             assert!(self.tape_state.is_valid());
             self.machine_state = rule.next_state;
             return true;
-        } else {
-            return false;
         }
+        false
     }
 
     /// Return the current tape head position for the indicated tape.
@@ -293,7 +294,7 @@ mod test {
         // Initial machine state
         let mut machine = Machine {
             machine_state: 0,
-            tape_state: tape_state,
+            tape_state,
         };
         // tape_state: (0, 0), (1, 0), machine_state: 0
         assert_eq!(machine.machine_state, 0);
